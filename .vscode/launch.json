@@ -1,0 +1,44 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "espidf",
+            "request": "launch",
+            "name": "ESP-IDF GDB",
+            // "target": "xtensa-esp-elf",
+            // "gdbPath": "C:\\Espressif\\tools\\xtensa-esp-elf-gdb\\12.1_20231023\\xtensa-esp-elf-gdb\\bin\\xtensa-esp32-elf-gdb.exe",
+            // "executable": "${workspaceFolder}/build/${fileDirname}.elf",
+            // "monitorTool": "esp-idf",
+            // "port": "COM5",  // Replace with your serial port
+            // "baudRate": 115200,
+            // "console": "integratedTerminal"
+        },
+        
+        {
+            "name": "C/C++: xtensa-esp32-elf-gcc.exe build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/ADC.elf",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "C:\\Espressif\\tools\\xtensa-esp-elf\\esp-13.2.0_20230928\\xtensa-esp-elf\\bin",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\Espressif\\tools\\xtensa-esp-elf-gdb\\12.1_20231023\\xtensa-esp-elf-gdb\\bin\\xtensa-esp32-elf-gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "C/C++: xtensa-esp32-elf-gcc.exe build active file"
+        }
+    ]
+}
