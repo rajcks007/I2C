@@ -1,26 +1,24 @@
 #include <stdio.h>
 #include "driver/i2c.h"
 #include "esp_log.h"
-#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-#define I2C_MASTER_SCL_IO    22    // GPIO22 for I2C clock
-#define I2C_MASTER_SDA_IO    21    // GPIO21 for I2C data
+#define I2C_MASTER_SCL_IO    22    // GPIO number for I2C clock
+#define I2C_MASTER_SDA_IO    21    // GPIO number for I2C data
 #define I2C_MASTER_NUM       I2C_NUM_0
-#define I2C_MASTER_FREQ_HZ   100000  // 100kHz
+#define I2C_MASTER_FREQ_HZ   100000  // Frequency of the I2C bus
 #define I2C_MASTER_TX_BUF_DISABLE 0
 #define I2C_MASTER_RX_BUF_DISABLE 0
 
-#define I2C_SLAVE_ADDR       0x68  // Replace with your slave device address
-#define READ_DELAY_MS        500  // Delay between reads in milliseconds
+#define MPU6050_ADDR         0x68  // I2C address of the MPU-6050
+#define MPU6050_PWR_MGMT_1   0x6B  // Register to wake up the MPU-6050
+#define MPU6050_ACCEL_XOUT_H 0x3B  // Register for accelerometer X-axis high byte
+// #define MPU6050_GYRO_XOUT_H  0x43  // Register for gyroscope X-axis high byte 
 
-static const char *TAG = "I2C_EXAMPLE";
+static const char *TAG = "MPU6050";
 
-void app_main(void)
-{
-    esp_err_t ret;
-
-    // Configure I2C master
+esp_err_t i2c_master_init(void) {
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
         .sda_io_num = I2C_MASTER_SDA_IO,
@@ -29,59 +27,75 @@ void app_main(void)
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .master.clk_speed = I2C_MASTER_FREQ_HZ,
     };
+    esp_err_t ret = i2c_param_config(I2C_MASTER_NUM, &conf);
+    if (ret != ESP_OK) return ret;
+    return i2c_driver_install(I2C_MASTER_NUM, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+}
 
-    ret = i2c_param_config(I2C_MASTER_NUM, &conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to configure I2C parameters: %s", esp_err_to_name(ret));
-        return;
-    }
-
-    ret = i2c_driver_install(I2C_MASTER_NUM, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to install I2C driver: %s", esp_err_to_name(ret));
-        return;
-    }
-
-    // Write data to I2C slave
-    uint8_t write_data = 0x00;  // Data to write
+esp_err_t mpu6050_write_byte(uint8_t reg_addr, uint8_t data) {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (I2C_SLAVE_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write(cmd, &write_data, sizeof(write_data), true);
+    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_write_byte(cmd, data, true);
     i2c_master_stop(cmd);
-    
-    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(READ_DELAY_MS));
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
     i2c_cmd_link_delete(cmd);
-    
+    return ret;
+}
+
+esp_err_t mpu6050_read_bytes(uint8_t reg_addr, uint8_t *data, size_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_start(cmd);  // Repeated start
+    i2c_master_write_byte(cmd, (MPU6050_ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read(cmd, data, len, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(100));
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
+void app_main(void) {
+    esp_err_t ret = i2c_master_init();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret));
-    } else {
-        ESP_LOGI(TAG, "Data 0x00 written successfully");
+        ESP_LOGE(TAG, "I2C initialization failed");
+        return;
     }
 
-     while (1) {
-        // Read data from I2C slave
-        uint8_t read_data[3] = {0};  // Buffer to store the read data
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (I2C_SLAVE_ADDR << 1) | I2C_MASTER_READ, true);
-        i2c_master_read(cmd, read_data, sizeof(read_data), I2C_MASTER_LAST_NACK);
-        i2c_master_stop(cmd);
-        
-        ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(READ_DELAY_MS));
-        i2c_cmd_link_delete(cmd);
-        
+    // Wake up MPU6050 by writing 0x00 to the power management register
+    ret = mpu6050_write_byte(MPU6050_PWR_MGMT_1, 0x00);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to wake up MPU6050");
+        return;
+    }
+
+    while (1) {
+        // Read accelerometer and gyroscope data
+        uint8_t data[14];  // 6 bytes for accel, 6 bytes for gyro, 2 bytes for temp
+        ret = mpu6050_read_bytes(MPU6050_ACCEL_XOUT_H, data, 14);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "I2C read failed: %s", esp_err_to_name(ret));
-        } else {
-            // Print received data
-            ESP_LOGI(TAG, "accelerometer_x: 0x%02X " , read_data[0]);
-            ESP_LOGI(TAG, "accelerometer_y: 0x%02X " , read_data[1]);
-            ESP_LOGI(TAG, "accelerometer_z: 0x%02X " , read_data[2]);
-            ESP_LOGI(TAG, "temperature: 0x%02X " , read_data[3]);
+            ESP_LOGE(TAG, "Failed to read sensor data");
+            return;
         }
 
-        // Wait for a while before the next read
-        vTaskDelay(pdMS_TO_TICKS(READ_DELAY_MS));
+        // Convert the raw data to signed 16-bit integers
+        int16_t accel_x = (data[0] << 8) | data[1];
+        int16_t accel_y = (data[2] << 8) | data[3];
+        int16_t accel_z = (data[4] << 8) | data[5];
+        int16_t temp = (data[6] << 8) | data[7];
+        int16_t gyro_x = (data[8] << 8) | data[9];
+        int16_t gyro_y = (data[10] << 8) | data[11];
+        int16_t gyro_z = (data[12] << 8) | data[13];
+
+        // Print accelerometer and gyroscope data in decimal format
+        ESP_LOGI(TAG, "Accel X: %d, Y: %d, Z: %d", accel_x, accel_y, accel_z);
+        ESP_LOGI(TAG, "temp : %d", temp);
+        ESP_LOGI(TAG, "Gyro X: %d, Y: %d, Z: %d", gyro_x, gyro_y, gyro_z);
+
+        // Delay to control the reading frequency
+        vTaskDelay(pdMS_TO_TICKS(3000));  // Delay in micro-second
     }
 }
