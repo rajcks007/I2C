@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include "driver/i2c.h"
+#include "driver/uart.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <string.h>
 
 #define I2C_MASTER_SCL_IO    22    // GPIO number for I2C clock
 #define I2C_MASTER_SDA_IO    21    // GPIO number for I2C data
@@ -15,6 +17,11 @@
 #define MPU6050_PWR_MGMT_1   0x6B  // Register to wake up the MPU-6050
 #define MPU6050_ACCEL_XOUT_H 0x3B  // Register for accelerometer X-axis high byte
 // #define MPU6050_GYRO_XOUT_H  0x43  // Register for gyroscope X-axis high byte 
+
+#define UART_NUM             UART_NUM_0  // UART port number
+#define UART_TX_PIN          1          // GPIO number for UART TX      ----- for UART 1 -- 17
+#define UART_RX_PIN          3          // GPIO number for UART RX      ----- for UART 1 -- 16
+#define UART_BAUD_RATE       115200      // Baud rate for UART communication
 
 static const char *TAG = "MPU6050";
 
@@ -39,7 +46,7 @@ esp_err_t mpu6050_write_byte(uint8_t reg_addr, uint8_t data) {
     i2c_master_write_byte(cmd, reg_addr, true);
     i2c_master_write_byte(cmd, data, true);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(100));
     i2c_cmd_link_delete(cmd);
     return ret;
 }
@@ -58,12 +65,34 @@ esp_err_t mpu6050_read_bytes(uint8_t reg_addr, uint8_t *data, size_t len) {
     return ret;
 }
 
+void uart_init(void) {
+    const uart_config_t uart_config = {
+        .baud_rate = UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+    uart_param_config(UART_NUM, &uart_config);
+    uart_set_pin(UART_NUM, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_driver_install(UART_NUM, 1024, 0, 0, NULL, 0);
+}
+
+void send_data_via_uart(const char *data) {
+    size_t len = strlen(data);  // Calculate the length of the string
+    uart_write_bytes(UART_NUM, data, len);  // Send the string via UART
+}
+
 void app_main(void) {
+
     esp_err_t ret = i2c_master_init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "I2C initialization failed");
         return;
     }
+
+    // Initialize UART
+    uart_init();
 
     // Wake up MPU6050 by writing 0x00 to the power management register
     ret = mpu6050_write_byte(MPU6050_PWR_MGMT_1, 0x00);
@@ -90,12 +119,33 @@ void app_main(void) {
         int16_t gyro_y = (data[10] << 8) | data[11];
         int16_t gyro_z = (data[12] << 8) | data[13];
 
+        /*
         // Print accelerometer and gyroscope data in decimal format
         ESP_LOGI(TAG, "Accel X: %d, Y: %d, Z: %d", accel_x, accel_y, accel_z);
         ESP_LOGI(TAG, "temp : %d", temp);
         ESP_LOGI(TAG, "Gyro X: %d, Y: %d, Z: %d", gyro_x, gyro_y, gyro_z);
+        */
+
+        // Send the data string over UART0
+        // Prepare data string
+        char data_str[100];
+        snprintf(data_str, sizeof(data_str), " %d", accel_x);
+
+        // Send the data string over UART0
+        send_data_via_uart(data_str);
+
+        /*
+        // Send the raw decimal data directly over UART
+        uart_write_bytes(UART_NUM, (const char*)&accel_x, sizeof(accel_x));
+        uart_write_bytes(UART_NUM, (const char*)&accel_y, sizeof(accel_y));
+        uart_write_bytes(UART_NUM, (const char*)&accel_z, sizeof(accel_z));
+        uart_write_bytes(UART_NUM, (const char*)&temp, sizeof(temp));
+        uart_write_bytes(UART_NUM, (const char*)&gyro_x, sizeof(gyro_x));
+        uart_write_bytes(UART_NUM, (const char*)&gyro_y, sizeof(gyro_y));
+        uart_write_bytes(UART_NUM, (const char*)&gyro_z, sizeof(gyro_z));
+        */
 
         // Delay to control the reading frequency
-        vTaskDelay(pdMS_TO_TICKS(3000));  // Delay in micro-second
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay in micro-second
     }
 }

@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "ADC",
-    "project_version":    "011cbf8-dirty",
+    "project_version":    "2e5bb3f-dirty",
     "project_path":       "C:/Users/rajch/Project/ESP/ADC",
     "idf_path":           "C:/Users/rajch/esp/v5.2.1/esp-idf",
     "build_dir":          "C:/Users/rajch/Project/ESP/ADC/build",
