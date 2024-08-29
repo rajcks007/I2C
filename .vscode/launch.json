@@ -18,7 +18,7 @@
             "name": "C/C++: xtensa-esp32-elf-gcc.exe build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ADC.elf",
+            "program": "${workspaceFolder}/build/I2C.elf",
             "args": [],
             "stopAtEntry": false,
             "cwd": "C:\\Espressif\\tools\\xtensa-esp-elf\\esp-13.2.0_20230928\\xtensa-esp-elf\\bin",
