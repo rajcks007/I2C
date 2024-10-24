@@ -176,7 +176,7 @@
 #define LSM6DSL_A_WRIST_TILT_MASK               0x59U
 #define PROPERTY_DISABLE                        0U
 #define PROPERTY_ENABLE                         1U
-#define LSM6DSL_ADDR                            (0xD6 >> 1)
+#define LSM6DSL_ADDR                            (0xD4 >> 1)
 
 
 #define NOT_OK (0x0)
@@ -268,12 +268,14 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  LSM6DSL_init();
+  LSM6DSL_EnableInterrupts();
+
   int16_t gyro_x, gyro_y, gyro_z;
   int16_t accel_x, accel_y, accel_z;
 
   /* USER CODE END 2 */
-  uint8_t LSM6DSL_init();
-  LSM6DSL_EnableInterrupts();		// Enable interrupts for the LSM6DSL
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -306,6 +308,7 @@ int main(void)
 	  //delay
 	  HAL_Delay(500);
 
+  }
   /* USER CODE END 3 */
 }
 
@@ -372,7 +375,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x0010020A;
+  hi2c1.Init.Timing = 0x00201D2B;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -557,51 +560,51 @@ void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
 /**
   * @brief LSM6DSL_ReadGyro Initialization Function
   */
-void LSM6DSL_ReadGyro(int16_t* gx, int16_t* gy, int16_t* gz)
-{
-
-    // Read 6 bytes of gyro data (OUTX_L_G to OUTZ_H_G)
-
-    uint8_t p_buf_rx[6];
-
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTX_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[0], 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTX_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[1], 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTY_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[2], 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTY_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[3], 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTZ_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[4], 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTZ_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[5], 1, HAL_MAX_DELAY);
-
-
-    // Combine low and high bytes to get 16-bit gyroscope values
-    *gx = (int16_t)(p_buf_rx[0] | p_buf_rx[1] << 8);
-    *gy = (int16_t)(p_buf_rx[2] | p_buf_rx[3] << 8);
-    *gz = (int16_t)(p_buf_rx[4] | p_buf_rx[5] << 8);
-}
+//void LSM6DSL_ReadGyro(int16_t* gx, int16_t* gy, int16_t* gz)
+//{
+//
+//    // Read 6 bytes of gyro data (OUTX_L_G to OUTZ_H_G)
+//
+//    uint8_t p_buf_rx[6];
+//
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTX_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[0], 1, HAL_MAX_DELAY);
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTX_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[1], 1, HAL_MAX_DELAY);
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTY_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[2], 1, HAL_MAX_DELAY);
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTY_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[3], 1, HAL_MAX_DELAY);
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTZ_L_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[4], 1, HAL_MAX_DELAY);
+//        HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_OUTZ_H_G, I2C_MEMADD_SIZE_8BIT, &p_buf_rx[5], 1, HAL_MAX_DELAY);
+//
+//
+//    // Combine low and high bytes to get 16-bit gyroscope values
+//    *gx = (int16_t)(p_buf_rx[0] | p_buf_rx[1] << 8);
+//    *gy = (int16_t)(p_buf_rx[2] | p_buf_rx[3] << 8);
+//    *gz = (int16_t)(p_buf_rx[4] | p_buf_rx[5] << 8);
+//}
 
 /**
   * @brief LSM6DSL_ReadAccel Initialization Function
   */
-void LSM6DSL_ReadAccel(int16_t* ax, int16_t* ay, int16_t* az)
-{
-
-    // Read 6 bytes of accelerometer data (OUTX_L_XL to OUTZ_H_XL)
-    uint8_t p_buf_tx[] = { LSM6DSL_OUTX_L_XL, LSM6DSL_OUTX_H_XL,
-        						LSM6DSL_OUTY_L_XL, LSM6DSL_OUTY_H_XL,
-    							LSM6DSL_OUTZ_L_XL, LSM6DSL_OUTZ_H_XL };
-    uint8_t p_buf_rx[6];
-
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[0], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[0], 1, HAL_MAX_DELAY);
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[1], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[1], 1, HAL_MAX_DELAY);
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[2], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[2], 1, HAL_MAX_DELAY);
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[3], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[3], 1, HAL_MAX_DELAY);
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[4], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[4], 1, HAL_MAX_DELAY);
-    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[5], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[5], 1, HAL_MAX_DELAY);
-
-    // Combine low and high bytes to get 16-bit accelerometer values
-    *ax = (int16_t)(p_buf_rx[0] | p_buf_rx[1] << 8);
-    *ay = (int16_t)(p_buf_rx[2] | p_buf_rx[3] << 8);
-    *az = (int16_t)(p_buf_rx[4] | p_buf_rx[5] << 8);
-}
+//void LSM6DSL_ReadAccel(int16_t* ax, int16_t* ay, int16_t* az)
+//{
+//
+//    // Read 6 bytes of accelerometer data (OUTX_L_XL to OUTZ_H_XL)
+//    uint8_t p_buf_tx[] = { LSM6DSL_OUTX_L_XL, LSM6DSL_OUTX_H_XL,
+//        						LSM6DSL_OUTY_L_XL, LSM6DSL_OUTY_H_XL,
+//    							LSM6DSL_OUTZ_L_XL, LSM6DSL_OUTZ_H_XL };
+//    uint8_t p_buf_rx[6];
+//
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[0], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[0], 1, HAL_MAX_DELAY);
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[1], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[1], 1, HAL_MAX_DELAY);
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[2], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[2], 1, HAL_MAX_DELAY);
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[3], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[3], 1, HAL_MAX_DELAY);
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[4], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[4], 1, HAL_MAX_DELAY);
+//    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, p_buf_tx[5], I2C_MEMADD_SIZE_8BIT, &p_buf_rx[5], 1, HAL_MAX_DELAY);
+//
+//    // Combine low and high bytes to get 16-bit accelerometer values
+//    *ax = (int16_t)(p_buf_rx[0] | p_buf_rx[1] << 8);
+//    *ay = (int16_t)(p_buf_rx[2] | p_buf_rx[3] << 8);
+//    *az = (int16_t)(p_buf_rx[4] | p_buf_rx[5] << 8);
+//}
 
 // Helper function to write data to a specific register
 void LSM6DSL_write_register(uint8_t reg, uint8_t data) {
@@ -617,7 +620,11 @@ uint8_t LSM6DSL_read_register(uint8_t reg) {
 
 // Get the ID of the LSM6DSL sensor
 uint8_t LSM6DSL_get_ID(void) {
-    return LSM6DSL_read_register(LSM6DSL_WHO_AM_I);
+	uint8_t newData;
+//    return LSM6DSL_read_register(LSM6DSL_WHO_AM_I);
+    HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_ADDR, LSM6DSL_WHO_AM_I, I2C_MEMADD_SIZE_8BIT, &newData, 1, HAL_MAX_DELAY);
+    return newData;
+
 }
 
 // Perform a software reset on the LSM6DSL sensor
@@ -684,10 +691,6 @@ void DataOver_UART(int16_t ax, int16_t ay, int16_t az, int16_t gx, int16_t gy, i
 	HAL_UART_Transmit(&huart2, (uint8_t*)uart_buff, buff_length, HAL_MAX_DELAY);
 
 }
-
-
-
-
 
 /* USER CODE END 4 */
 
