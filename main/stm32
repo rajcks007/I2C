@@ -189,14 +189,15 @@
 
 #define TIME_LIMIT 5000
 
-#define lower_gyro_x			0x0F	//
-#define upper_gyro_x			0x19	//
+//#define lower_gyro_x			0x14	//
+//#define upper_gyro_x			0x1E	//
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 volatile uint32_t startTime = 0;						// stsrt time for data
+volatile uint32_t startTime2 = 0;						// stsrt time for data
 bool Time_flag = false;					// flag indicate that 10 sec. in range
 
 /* USER CODE END PM */
@@ -209,6 +210,9 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t i2c_rx_buffer[6];  // To store accelerometer or gyroscope data
 bool data_ready;
+
+int16_t lower_gyro_x = 0x14;
+int16_t	upper_gyro_x = 0x1E;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -283,7 +287,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   LSM6DSL_init();
 
-
+  startTime2 = HAL_GetTick();			// start timer
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -299,6 +303,10 @@ int main(void)
 	  if(Time_flag)
 	  {
 		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	  }
+	  else
+	  {
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 	  }
 
 	  //delay
@@ -370,7 +378,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x0010020A;
+  hi2c1.Init.Timing = 0x0000020B;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -518,7 +526,7 @@ void CheckDataInRange(void)
 	  DataOver_UART(accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
 
 //	  // check is data is within limit
-	  if(gyro_x >= lower_gyro_x && gyro_x <= upper_gyro_x)
+	  if(accel_x >= lower_gyro_x && accel_x <= upper_gyro_x)
 	  {
 		  // check timer is on
 		  if(startTime == 0)
@@ -532,7 +540,18 @@ void CheckDataInRange(void)
 	  }
 	  else
 	  {
+		  if(startTime2 == 0)
+		  {
+			  startTime2 = HAL_GetTick();			// start timer
+		  }
 		  startTime = 0;
+		  if((HAL_GetTick() - startTime2) >= TIME_LIMIT)
+		  {
+			  lower_gyro_x = accel_x - 500;
+			  upper_gyro_x = accel_x + 500;
+			  startTime2 = 0;
+			  Time_flag = false;
+		  }
 		  Time_flag = true;
 	  }
 
